@@ -37,8 +37,13 @@ def get_args():
     return parser.parse_args()
 
 if __name__ == "__main__":
+    
+    # model load
     # model_path = 'liuhaotian/llava-v1.5-13b'
     args = get_args()
+
+    args.data_root = args.data_root + "/test/" + args.sks_name
+
     prompt = f"Write a caption for this photo of <{args.sks_name}>."
     tokenizer, model, image_processor, context_len = load_pretrained_model(
         model_path=args.model_path,
@@ -56,8 +61,10 @@ if __name__ == "__main__":
     num_added_tokens = tokenizer.add_tokens(placeholder_tokens)
     placeholder_token_ids = tokenizer.convert_tokens_to_ids(placeholder_tokens)
     model.resize_token_embeddings(len(tokenizer))
-    sks_token = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.exp_name}/{args.epoch}-token.pt').detach()
-    lm_head = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.exp_name}/{args.epoch}-lmhead.pt', map_location=model.lm_head.weight.device).detach()
+
+    # pretrained model load
+    sks_token = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.epoch}-token.pt').detach()
+    lm_head = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.epoch}-lmhead.pt', map_location=model.lm_head.weight.device).detach()
 
     model.resize_token_embeddings(len(tokenizer))
     model.get_input_embeddings().weight[placeholder_token_ids] = sks_token.to(dtype=model.get_input_embeddings().weight.dtype)
@@ -85,7 +92,6 @@ if __name__ == "__main__":
     image_files = []
     for ext in ['*.png', '*.jpg', '*.jpeg', '*.PNG', '*.JPG', '*.JPEG']:
         image_files.extend(glob.glob(os.path.join(args.data_root, ext)))
-    # image_files = [x for x in image_files if 'henry' in x]
     print(image_files)
     save_dict = {}
     for image_file in image_files:
@@ -103,5 +109,5 @@ if __name__ == "__main__":
     if args.save_json:
         os.makedirs(f'./qualitative/{args.sks_name}/{args.exp_name}', exist_ok=True)
         with open(f'./qualitative/{args.sks_name}/{args.exp_name}/{args.epoch}-output.json', 'w') as f:
-            json.dump(save_dict, f)
+            json.dump(save_dict, f, indent=4)
         print('Saved to: ', f'./qualitative/{args.sks_name}/{args.exp_name}/{args.epoch}-output.json')

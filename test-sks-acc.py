@@ -57,8 +57,9 @@ if __name__ == "__main__":
     model.resize_token_embeddings(len(tokenizer))
 
     # Load the token and lm_head embeddings
-    sks_token = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.exp_name}/{args.epoch}-token.pt').detach()
-    lm_head = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.exp_name}/{args.epoch}-lmhead.pt').detach()
+    sks_token = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.epoch}-token.pt').detach()
+    lm_head = torch.load(f'{args.checkpoint_path}/{args.sks_name}/{args.epoch}-lmhead.pt').detach()
+
     model.get_input_embeddings().weight.requires_grad = False
     model.lm_head.weight.requires_grad = False
     model.get_input_embeddings().weight[placeholder_token_ids] = sks_token.to(model.device, dtype=model.dtype)
@@ -88,11 +89,13 @@ if __name__ == "__main__":
     else:
         args = get_query(args, sks_prompt + f" Can you see <{args.sks_name}> in this photo? Answer with a single word or phrase.", model=model, sks_system_prompt=None)
     
-    categories = os.listdir(args.data_root)
-    if 'cc12m_images' in args.data_root:
-        categories = [args.sks_name]
-    if '.DS_Store' in categories:
-        categories.remove('.DS_Store')
+    # categories = os.listdir(args.data_root)
+    # if 'cc12m_images' in args.data_root:
+    #     categories = [args.sks_name]
+    # if '.DS_Store' in categories:
+    #     categories.remove('.DS_Store')
+    args.data_root = args.data_root + args.sks_name
+    categories = ["", 'negative_example', 'random-images']
         
     os.makedirs(f"./quantitative/{args.sks_name}", exist_ok=True)
     print('Categories: ')
@@ -126,18 +129,15 @@ if __name__ == "__main__":
                                     image_processor=image_processor,
                                     tokenizer=tokenizer,
                                     return_ids=True)
-                # print(output)
+                print(output)
                 assert output in ['Yes', 'No']
                 pred.append(output)
             except Exception as e:
                 print(e)
                 # list_incorrect.append(image_file)
                 pass
-        if category == args.sks_name:
-            if 'laion' in args.data_root:
-                gt = ['No']*len(pred)
-            else:
-                gt = ['Yes']*len(pred)
+        if category == "":
+            gt = ['Yes']*len(pred)
         else:
             gt = ['No']*len(pred)
         true_pos = np.array(pred)==np.array(gt)
